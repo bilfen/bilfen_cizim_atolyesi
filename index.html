@@ -225,20 +225,34 @@
         }
 
         function resizeCanvas() {
-            const tempImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            if (width === 0 || height === 0) return;
+
+            // Mevcut çizimi koru
+            let tempImage = null;
+            if (canvas.width > 0 && canvas.height > 0) {
+                tempImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.putImageData(tempImage, 0, 0);
+            
+            if (tempImage) {
+                ctx.putImageData(tempImage, 0, 0);
+            }
         }
 
         // Çizim Mantığı
         function getCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
-                x: (e.clientX || e.pageX) - rect.left,
-                y: (e.clientY || e.pageY) - rect.top
+                x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left,
+                y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top
             };
         }
 
@@ -251,7 +265,11 @@
                 floodFill(Math.floor(coords.x), Math.floor(coords.y), state.color);
                 saveState();
                 state.isDrawing = false;
+                return;
             }
+
+            // Tek tıkla nokta koyabilmek için
+            draw(e);
         }
 
         function draw(e) {
@@ -291,7 +309,8 @@
         function setTool(tool) {
             state.tool = tool;
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`tool-${tool}`).classList.add('active');
+            const targetBtn = document.getElementById(`tool-${tool}`);
+            if (targetBtn) targetBtn.classList.add('active');
         }
 
         function setColor(color) {
@@ -387,9 +406,14 @@
         // Sayfa Kontrolleri
         function showDrawingPage() {
             document.getElementById('home-page').classList.add('hidden');
-            document.getElementById('drawing-page').classList.remove('hidden');
-            document.getElementById('drawing-page').classList.add('flex');
-            setTimeout(resizeCanvas, 100);
+            const drawPage = document.getElementById('drawing-page');
+            drawPage.classList.remove('hidden');
+            drawPage.classList.add('flex');
+            
+            // DOM güncellenene kadar bekle ve boyutlandır
+            requestAnimationFrame(() => {
+                resizeCanvas();
+            });
         }
 
         function showHomePage() {
